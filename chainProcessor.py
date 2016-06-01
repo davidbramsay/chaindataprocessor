@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from processes import *
+from lib.processes import *
 import zmq
 import sys
 import requests
@@ -58,7 +58,7 @@ def create_main_process(socket="tcp://127.0.0.1:5557"):
 def main_spawn(socket):
 
     #get list of names of processes (should be names of sensors we're interested in)
-    processes = [name for _, name, _ in pkgutil.iter_modules(['processes'])]
+    processes = [name for _, name, _ in pkgutil.iter_modules(['lib/processes'])]
 
     context = zmq.Context()
     zmqReceive = context.socket(zmq.PULL)
@@ -83,10 +83,11 @@ def main_spawn(socket):
         #check if process requires extra data
         aux_data = globals()[process].required_aux_data(metric, unit)
         print 'auxdata is %s' %aux_data
+
         #get required data using traversal
         traveler = chainTraversal.ChainTraversal(entry_point=uri)
         data = []
-        data.append({'from':'main', 'data':traveler.get_all_data()})
+        data.append({'main': traveler.get_all_data()})
 
         if aux_data is not None:
             searcher = chainSearch.ChainSearch(entry_point=uri)
@@ -94,7 +95,11 @@ def main_spawn(socket):
                 found = searcher.find_first(resource_title=title)
                 if found:
                     traveler = chainTraversal.ChainTraversal(entry_point=found[0])
-                    data.append({'from':title, 'data':traveler.get_all_data()})
+                    data.append({title: traveler.get_all_data()})
+
+        #add geotag data 'lat', 'lon', 'elevation' to each datapoint
+        #we are assuming that all sensors are part of the same device/site
+        data = add_geotags(uri, data)
 
         #call process_data on data from sensor
         publish_vals = globals()[process].process_data(data, metric, unit)
@@ -108,12 +113,16 @@ def main_spawn(socket):
             if found:
                 traveler = chainTraversal.ChainTraversal(entry_point=found[0])
 
-                traveler.add_and_move_to_resource('Sensor',
-                        {'sensor_type': publish_vals[0],
-                        'metric': publish_vals[1],
-                        'unit': publish_vals[2]} )
+                try:
+                    traveler.add_and_move_to_resource('Sensor',
+                            {'sensor_type': publish_vals[0],
+                            'metric': publish_vals[1],
+                            'unit': publish_vals[2]} )
 
-                traveler.safe_add_data(publish_vals[3])
+                    if publish_vals[3] is not None:
+                        traveler.safe_add_data(publish_vals[3])
+                except:
+                    log.warn('publish data from processor malformed')
 
             else:
                 log.warn("can't find device to publish data to")
@@ -156,6 +165,13 @@ def check_sensor_type_has_process(res_json, processes):
     except:
         log.warn('no sensor_type detected')
         return None
+
+
+def add_geotags(uri, data):
+    '''(1) pull geotag data from device or site.  If site exists it's stationary,
+    append geotag to all data.  If device it's not stationary, append geotag to
+    each individual datapoint with some tolerance for timing.  If neither site
+    nor device have geotag throw an error.  uri is uri of sensor.'''
 
 
 

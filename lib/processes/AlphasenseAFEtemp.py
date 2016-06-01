@@ -1,7 +1,8 @@
-#AlphasenseAFEtemp Sensor Processing
+#AlphasenseAFEtemp essing
 
 #every process must have required_aux_data and process_data routines
 
+from .. import machineLearnDatastore
 
 #this tells which extra data are required and which functions to use to process
 #a given metric/unit combination for this sensor type
@@ -44,7 +45,8 @@ def process_data(data, metric, unit):
 #all functions should return [sensor_type, metric, unit, data_to_post]
 def raw_to_temp(data):
 
-    new_data = data[0]['data']
+    new_data = None
+
     return('test_post_sensortype', 'temperature', 'celcius', new_data)
 
 

@@ -55,11 +55,20 @@ class machineLearnMongo(object):
         '''attempt to add each piece of data, if timestamp/lat/lon not unique
         then add to existing.  Data should be formed as [ {'timestamp':x,
         'lat':y, 'lon':z, 'fieldtoadd':xyz}, {'timestamp':x, 'lat':y,'lon':z,
-        'fieldtoadd':xyz} ]'''
+        'fieldtoadd':xyz} ]
+
+        returns number of new entries in collection (some may be updated but
+        these will not be counted, simply a comparison of size pre/post op).
+        '''
 
         #TODO: slow/unoptimized check of possible timestamp lables on every
         # iteration to change to 'timestamp'.  Could be optimized so check only
         # done once.
+
+        try:
+            start_length = self.db.command('collStats', collection_name)['count']
+        except:
+            log.warn('could not get length of collection')
 
         for d in data:
 
@@ -86,13 +95,22 @@ class machineLearnMongo(object):
             except:
                 log.warn('failed to add %s', d)
 
+        length = 0
+
+        try:
+            length = self.db.command('collStats', collection_name)['count'] - start_length
+        except:
+            log.warn('could not get length of collection')
+
+        return length
+
 
     def add_conditions(self, data):
-        self.add_data_to_collection('conditions', data)
+        return self.add_data_to_collection('conditions', data)
 
 
     def add_data_to_current_collection(self, data):
-        self.add_data_to_collection(self.current_collection.name, data)
+        return self.add_data_to_collection(self.current_collection.name, data)
 
 
     def return_ml_array(self, collection_name=None, conditions=None, measure=None,
@@ -336,22 +354,107 @@ class machineLearnMongo(object):
                 return None
 
 
+class mlModelMongo(object):
+
+    def __init__ (self, collection_name, algorithm, db='learnair_model'):
+
+        client = pymongo.MongoClient('localhost', 27017)
+        self.db = client[db]
+        self.collection = self.db[collection_name + '_' + algorithm]
+
+    def post(self, list_values):
+        self.collection.update({},{'vals': list_values}, upsert=True)
+
+    def get(self):
+        return self.collection.find({})[0]['vals']
+
+
+
+class machineLearnAir(object):
+    #this serves as a bridge to the mongo database, which formats data that is
+    #passed to it, and writes it to the mongo database, and also calls one of
+    #several ml algorithms depending on a passed string
+
+    def __init__(self, collection_name='conditions', update_model_with_x_new_entries=100):
+
+        self.update_thresh = update_model_with_x_new_entries
+        self.collection_name = collection_name
+        self.mongo = machineLearnMongo()
+
+        if collection_name != 'conditions':
+            self.conditions = False
+            self.mongo.switch_to_collection(collection_name)
+        else:
+            self.conditions = True
+
+
+    def run(self, data, algorithm='svm'):
+
+        #post data to ml database
+        num_updates = self.post_data(data)
+
+        if self.collection_name == 'conditions':
+            #exit after posting formated data if conditions, return nothing
+            return None
+
+        #access relevant ml model
+        model = mlModelMongo(self.collection_name, algorithm)
+
+        #update ml model if necessary
+        if num_updates >= self.update_thresh:
+            getattr(self, algorithm + '_train')(model)
+
+        #use ml model to create post data and return it
+        return getattr(self, algorithm)(data, model)
+
+
+    def post_data(self, data):
+        '''returns number of new entries posted'''
+
+        #preprocess data
+
+        #add to mongo database
+        if self.conditions:
+            return self.mongo.add_conditions(data)
+        else:
+            return self.mongo.add_data_to_current_collection(data)
+
+
+    def svm_train(self, model):
+        #train an svm model for this data
+        print 'train svm reached'
+        model.post([1,2,3]) #store model parameters
+
+
+    def svm(self, data, model):
+        #run svm on passed data using trained svm model
+        print 'svm reached'
+        params = model.get()
+        return data
+
 
 if __name__ == "__main__":
+    '''
+    a = mlModelMongo('testcond','svm')
+    a.store([1,4,7,6])
+    print a.get()[0]
 
+    b = machineLearnAir()
+    b.svm([1,2,3])
+    '''
     a = machineLearnMongo()
     a.switch_to_collection('test_measure1')
     a.print_conditions()
-    a.add_conditions([
-            {'timestamp':'5/23/16 4:30','lat':40,'lon':50, 'testg':5},
+    print a.add_conditions([
+            {'timestamp':'5/23/16 4:29','lat':40,'lon':50, 'testg':5},
             {'timestamp':'5/23/16 4:34','lat':40,'lon':50, 'testh':6},
             {'timestamp':'5/23/16 4:30','lat':45,'lon':50, 'testi':7},
             {'timestamp':'5/23/16 4:34','lat':45,'lon':50, 'testj':8} ])
     #print a.get_values_in_range('conditions', '5/23/16 4:33:31', 39, 55,
     #        time_range=10*60, lat_lon_range=10, loc_then_time=True)
-    a.add_data_to_current_collection([
-            {'timestamp':'5/23/16 4:30','lat':40,'lon':50, 'testk':9},
-            {'timestamp':'5/23/16 4:34','lat':40,'lon':50, 'testl':10},
+    print a.add_data_to_current_collection([
+            {'timestamp':'5/23/16 4:29','lat':40,'lon':50, 'testk':9},
+            {'timestamp':'5/23/16 4:20','lat':40,'lon':50, 'testl':10},
             {'timestamp':'5/23/16 4:30','lat':45,'lon':50, 'testm':11},
             {'timestamp':'5/23/16 4:34','lat':45,'lon':50, 'testn':12} ])
     a.print_conditions()
