@@ -1,8 +1,13 @@
 # chaindataprocessor
 a scalable machine learning crawler framework, which automatically crawls and downloads data from a list of 'known' devices, processes their data using a device-specific model (that automatically updates when new data is found), and uploads that processed data back into ChainAPI.
 
-##**chaindataprocessor** is part of [LearnAir, a master's thesis](https://www.davidbramsay.com/learnair).
+chaindataprocessor is part of [LearnAir, a master's thesis](https://www.davidbramsay.com/learnair).
 
+##documentation and examples**
+
+![Thesis Excerpt](/readme.jpg)
+
+## related work
 **code written for LearnAir includes:**
 + [chainCrawler and chainSearcher](https://github.com/dramsay9/chaincrawler) - *a web crawler and a breadth-first-search tool for the semantic web data achitecture ChainAPI*
 + [chainTraverser and chainDataPush](https://github.com/dramsay9/chainlearnairdata) - *a stateful web spider to traverse, upload, modify, and interact with ChainAPI nodes and data, including pushing data from Excel files*
@@ -16,8 +21,9 @@ a scalable machine learning crawler framework, which automatically crawls and do
 + [a quick video introducing the learnAir concept](https://vimeo.com/188586371)
 + [the original ChainAPI project](https://github.com/ResEnv/chain-api)
 
+#
+### Contact
+dramsay@mit.edu
 
 
-##**relevant thesis excerpt (with documentation and examples):**
 
-![Thesis Excerpt](/readme.jpg)
