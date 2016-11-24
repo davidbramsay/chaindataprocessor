@@ -3,7 +3,7 @@ a scalable machine learning crawler framework, which automatically crawls and do
 
 chaindataprocessor is part of [LearnAir, a master's thesis](https://www.davidbramsay.com/learnair).
 
-##documentation and examples**
+##**documentation and examples**
 
 ![Thesis Excerpt](/readme.jpg)
 
